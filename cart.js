@@ -1,0 +1,759 @@
+
+function MiniOrbit(camera, el) {
+  const target = new THREE.Vector3();
+  const spherical = new THREE.Spherical();
+  const offset = new THREE.Vector3();
+  function frame() {
+    target.set(0, 11, 0);
+    spherical.set(88, 1.12, 0.82);
+  }
+  frame();
+  let mode = null, lx = 0, ly = 0;
+  el.addEventListener("pointerdown", (e) => {
+    el.setPointerCapture(e.pointerId);
+    mode = (e.button === 2 || e.shiftKey || e.button === 1) ? "pan" : "rot";
+    lx = e.clientX; ly = e.clientY;
+  });
+  el.addEventListener("pointerup", () => { mode = null; });
+  el.addEventListener("pointercancel", () => { mode = null; });
+  el.addEventListener("pointermove", (e) => {
+    if (!mode) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    if (mode === "rot") {
+      spherical.theta -= dx * 0.005;
+      spherical.phi = Math.min(Math.PI * 0.49, Math.max(0.12, spherical.phi - dy * 0.005));
+    } else {
+      const pan = spherical.radius * 0.0016;
+      const right = new THREE.Vector3();
+      camera.getWorldDirection(right);
+      right.cross(new THREE.Vector3(0, 1, 0)).normalize();
+      target.addScaledVector(right, -dx * pan);
+      target.y += dy * pan;
+    }
+  });
+  el.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    spherical.radius = Math.min(220, Math.max(70, spherical.radius * (1 + e.deltaY * 0.0007)));
+  }, { passive: false });
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  return {
+    target,
+    update() {
+      offset.setFromSpherical(spherical);
+      camera.position.copy(target).add(offset);
+      camera.lookAt(target);
+    },
+    reset: frame
+  };
+}
+
+const TUBE = 1;
+const SIDE_PAD = 0.25;
+const SLOT_C = 0.125;
+const PINCH = 14;
+
+const $ = (id) => document.getElementById(id);
+const inputs = {
+  diam: $("diam"), thick: $("thick"), count: $("count"),
+  depth: $("depth"), owidth: $("owidth"), rod: $("rod"),
+  post: $("post"), cast: $("cast"),
+  showDiscs: $("show-discs"), showBay: $("show-bay"), showDims: $("show-dims"),
+};
+
+function num(el) { return parseFloat(el.value); }
+
+function derive() {
+  const D = num(inputs.diam);
+  const t = num(inputs.thick);
+  const n = Math.round(num(inputs.count));
+  const depth = num(inputs.depth);
+  const width = num(inputs.owidth);
+  const rod = num(inputs.rod);
+  const post = num(inputs.post);
+  const caster = num(inputs.cast);
+  const r = D / 2;
+  const rods = n * 2;
+  const channel = 2 * rod + t + SLOT_C;
+  const used = 2 * TUBE + 2 * SIDE_PAD + n * channel;
+  const air = n > 1 ? (width - used) / (n - 1) : 0;
+  const faceGap = 2 * rod + air;
+  const s = depth - TUBE;
+  const inner = depth - 2 * TUBE;
+  const drop = s >= D ? null : r - Math.sqrt(r * r - (s / 2) * (s / 2));
+  const discAboveRails = drop == null ? null : D - drop;
+  const plate = 1.25;
+  const plateT = 0.25;
+  const wheel = 2;
+  const insetY = 0.5;
+  const insetX = 0.62;
+  const railTop = caster + plateT + TUBE;
+  const belly = drop == null ? null : railTop - drop;
+  const discTop = drop == null ? null : railTop + discAboveRails;
+  const overallH = railTop + post;
+  const run = depth - TUBE;
+  const rise = post - TUBE / 2;
+  const rodLen = Math.hypot(run, rise);
+  const angle = Math.atan2(rise, run) * 180 / Math.PI;
+  const gussetLen = 2;
+  const weld = 0.125;
+  const slop = SLOT_C;
+  const yDiscOuter = -width / 2 + TUBE + SIDE_PAD + rod + (t + SLOT_C) / 2;
+  const massEach = Math.PI * r * r * t * 0.2836 * (2.1 / 7.85);
+  const cartLb = 32;
+  const fullLb = cartLb + n * Math.max(13, Math.min(21, massEach));
+  const zCg = (cartLb * (railTop * 0.55) + n * Math.max(13, Math.min(21, massEach)) * (railTop + (drop == null ? r : (r - drop)))) / fullLb;
+  const halfTrack = (width - 2 * insetY) / 2;
+  const tipY = Math.atan(halfTrack / zCg) * 180 / Math.PI;
+  const tipIfNarrow = Math.atan(((11.125 - 2.2) / 2) / zCg) * 180 / Math.PI;
+  return {
+    D, t, n, r, depth, rod, rods, post, caster, width, channel, air, faceGap,
+    s, inner, drop, discAboveRails, railTop, belly, discTop, overallH, run, rise,
+    rodLen, angle, slop, massEach, cartLb, fullLb, zCg, halfTrack, tipY, tipIfNarrow, used,
+    gussetLen, plate, plateT, wheel, insetY, insetX, weld, yDiscOuter,
+  };
+}
+
+function inch(v, d = 2) {
+  if (v == null || Number.isNaN(v)) return "—";
+  return Number(v).toFixed(d) + " in";
+}
+function deg(v) { return v.toFixed(1) + "°"; }
+function lb(v) { return v.toFixed(1) + " lb"; }
+
+function checks(p) {
+  const out = [];
+  out.push({
+    cls: p.width <= 13.05 ? "good" : p.width <= PINCH - 0.4 ? "warn" : "bad",
+    title: p.width <= 13.05 ? "Fits the 14 in pinch" : p.width <= PINCH - 0.4 ? "Tight in the pinch" : "Will jam in the pinch",
+    body: `Overall width ${inch(p.width)}. Spoken wall-to-e-box is ~14 in. Casters stay inside the plan.`,
+  });
+  out.push({
+    cls: p.air >= 0.35 && p.faceGap >= 0.8 ? "good" : p.air >= 0.15 ? "warn" : "bad",
+    title: p.air < 0.15 ? "No room for spacers at this width" : p.air < 0.35 ? "Spacer is getting thin" : "Shelves cannot clang",
+    body: `Each shelf has two jaws. Spacer between channels ${inch(p.air)}. Ceramic face-to-face ${inch(p.faceGap)}. A shared toast rod is not a spacer.`,
+  });
+  if (p.drop == null) {
+    out.push({ cls: "bad", title: "Disc falls through", body: `Cradle span ${inch(p.s)} is ≥ diameter ${inch(p.D)}.` });
+  } else if (p.drop > 3.2) {
+    out.push({ cls: "bad", title: "Recess too deep", body: `Span ${inch(p.s)} sinks the disc ${inch(p.drop)}. Jason’s “too deep.” Pull depth back toward 13 in.` });
+  } else if (p.drop > 2.4) {
+    out.push({ cls: "warn", title: "Cradle is getting deep", body: `Drop ${inch(p.drop)} on span ${inch(p.s)}. Usable, but 12–13 in outside is the sweet spot.` });
+  } else {
+    out.push({ cls: "good", title: "Sitting on the short span", body: `Front and back rails, center-to-center ${inch(p.s)}. Disc drops ${inch(p.drop)} into the cradle. It has to climb that far to roll out.` });
+  }
+  if (p.belly != null) {
+    out.push({
+      cls: p.belly >= 1.75 ? "good" : p.belly >= 1.2 ? "warn" : "bad",
+      title: p.belly >= 1.75 ? "Belly clears the floor" : p.belly >= 1.2 ? "Belly is close to the floor" : "Belly hits the floor",
+      body: `Lowest point of the disc is ${inch(p.belly)} above the floor.`,
+    });
+  }
+  out.push({
+    cls: "good",
+    title: "Slot is a pair of jaws, not a loose toast gap",
+    body: `Inside each pair: thickness ${inch(p.t)} + ${inch(p.slop)} clearance. Tape the real t before you space the rods.`,
+  });
+  if (p.discTop != null) {
+    out.push({
+      cls: p.overallH >= p.discTop + 0.25 ? "good" : p.overallH >= p.discTop - 0.5 ? "warn" : "bad",
+      title: p.overallH >= p.discTop + 0.25 ? "Back stop is above the disc" : "Back is about even with the disc",
+      body: `Disc top ${inch(p.discTop)} AFF. Top rail ${inch(p.overallH)} AFF. Rods run ${inch(p.rodLen)} at ${deg(p.angle)}.`,
+    });
+  }
+  out.push({
+    cls: p.tipY >= 22 ? "good" : p.tipY >= 16 ? "warn" : "bad",
+    title: `Static tip about the pinch ≈ ${deg(p.tipY)}`,
+    body: `Half-track ${inch(p.halfTrack)}. At 11.13 in wide this was ${deg(p.tipIfNarrow)}. Width does more for tip than dropping the discs. Keep 3 in casters so the belly stays off the tile. Roll into the aisle and lock before you pull a shelf.`,
+  });
+  return out;
+}
+
+function renderPanel(p) {
+  if (!$("v-diam")) return;
+  $("v-diam").textContent = inch(p.D, 2);
+  $("v-thick").textContent = inch(p.t, 2);
+  $("v-count").textContent = String(p.n);
+  $("v-width").textContent = inch(p.width, 3);
+  $("v-depth").textContent = inch(p.depth, 2);
+  $("v-rod").textContent = inch(p.rod, 3);
+  $("v-post").textContent = inch(p.post, 2);
+  $("v-cast").textContent = inch(p.caster, 2);
+  $("thick-note").textContent = `About ${lb(p.massEach)} if density is 2.1 g/cm³. Kit copy never gave thickness. 16 mm is only a reference.`;
+  const hangEl = $("hang");
+  if (hangEl) {
+    hangEl.className = "hang" + (p.belly != null && p.belly < 1.2 ? " bad" : "");
+    hangEl.innerHTML = `
+      <div><b>${p.drop == null ? "—" : inch(p.drop)}</b><span>below the rails (the hang). Not 5 in.</span></div>
+      <div><b>${p.belly == null ? "—" : inch(p.belly)}</b><span>air under the belly to the floor</span></div>`;
+    $("hang-note").textContent = p.belly != null && p.belly < 0
+      ? "Not enough space. The disc is through the floor. Shorten the cradle depth."
+      : p.drop != null && p.drop > 3.2
+        ? "That hang is the 18 in-deep failure. Bring depth back to 13 in."
+        : "Enough space. 1.85 in hang on a 12 in span, about 2 in to the tile. 5 in is only if you copy Mike’s 18 in run — then the disc hits the floor.";
+  }
+
+  $("checks").innerHTML = checks(p).map((c) =>
+    `<div class="check ${c.cls}"><i></i><div><strong>${c.title}</strong><span>${c.body}</span></div></div>`
+  ).join("");
+
+  const rows = [
+    ["Frame tube", "1.00 × 1.00 × 14 ga"],
+    ["Overall width, pinch", inch(p.width)],
+    ["Overall depth, along kiln", inch(p.depth)],
+    ["Overall height, floor to top rail", inch(p.overallH)],
+    ["Bottom side rails (between longs)", inch(Math.max(0, p.depth - 2 * TUBE))],
+    ["Back posts, above bottom tube", inch(p.post)],
+    ["Support span, rail centers", inch(p.s)],
+    ["Open rectangle inside bottom", inch(p.inner)],
+    ["Cradle drop / climb to roll", inch(p.drop)],
+    ["Caster height", inch(p.caster)],
+    ["Caster plate, max", `${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} × ${p.plateT.toFixed(2)} in`],
+    ["Caster wheel", `${p.wheel.toFixed(2)} in phenolic, ≤ 0.88 in wide`],
+    ["Caster axis inset from outer Y", inch(p.insetY)],
+    ["Caster axis inset from outer X", inch(p.insetX)],
+    ["Outer shelf center, from mid", inch(Math.abs(p.yDiscOuter))],
+    ["Rail top above floor", inch(p.railTop)],
+    ["Disc belly above floor", inch(p.belly)],
+    ["Disc top above floor", inch(p.discTop)],
+    ["Rod count, 2 per shelf", String(p.rods)],
+    ["Rod diameter", inch(p.rod, 3)],
+    ["Rod run, rail center to center", inch(p.run)],
+    ["Rod rise, front top to top-rail center", inch(p.rise)],
+    ["Rod cut length", inch(p.rodLen)],
+    ["Rod angle from floor", deg(p.angle)],
+    ["Jaw pair inside (t + ⅛)", inch(p.t + p.slop)],
+    ["Air spacer between pairs", inch(p.air)],
+    ["Ceramic face-to-face", inch(p.faceGap)],
+    ["Side pad inside each 1×1", inch(SIDE_PAD)],
+    ["Angle gusset (the 1 in L)", `1.00 × 1.00 × ⅛ × ${inch(p.gussetLen)}`],
+    ["Fillet weld", inch(p.weld)],
+    ["Pinch leftover, 14 − width", inch(PINCH - p.width)],
+    ["Half-track", inch(p.halfTrack)],
+    ["Tip angle, pinch axis", deg(p.tipY)],
+    ["Est. empty cart", lb(p.cartLb)],
+    ["Est. full, this t", lb(p.fullLb)],
+  ];
+  $("meas").innerHTML = "<tr><th>Name</th><th>Value</th></tr>" +
+    rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+
+  const cuts = [
+    [`Bottom front rail`, 1, `1×1×14 ga HSS`, inch(p.width)],
+    [`Bottom back rail`, 1, `1×1×14 ga HSS`, inch(p.width)],
+    [`Bottom side rail`, 2, `1×1×14 ga HSS`, inch(Math.max(0, p.depth - 2 * TUBE))],
+    [`Back post`, 2, `1×1×14 ga HSS`, inch(p.post)],
+    [`Top back rail`, 1, `1×1×14 ga HSS`, inch(p.width)],
+    [`Corner gusset`, 2, `1×1×⅛ angle`, inch(p.gussetLen)],
+    [`Jaw rod`, p.rods, `${p.rod.toFixed(3)} in HR round`, inch(p.rodLen)],
+    [`Caster pad`, 4, `¼ in plate`, `${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} flush outboard`],
+    [`Caster`, 4, `2 in phenolic wheel, lock`, inch(p.caster) + " overall"],
+    [`Slot jig, shop only`, 1, `¾ MDF`, inch(p.t + p.slop)],
+    [`Spacer jig, shop only`, 1, `¾ MDF`, inch(p.air)],
+  ];
+  $("cuts").innerHTML = "<tr><th>Part</th><th>Qty</th><th>Stock</th><th>Size</th></tr>" +
+    cuts.map(([a, q, s, l]) => `<tr><td>${a}</td><td>${q}</td><td>${s}</td><td>${l}</td></tr>`).join("");
+  renderBuild(p);
+  renderReview(p);
+}
+
+function rimZAtX(p, x) {
+  if (p.drop == null) return null;
+  const cy = p.railTop + (p.r - p.drop);
+  const inside = p.r * p.r - x * x;
+  if (inside < 0) return null;
+  return cy - Math.sqrt(inside);
+}
+
+function renderReview(p) {
+  if (!$("review")) return;
+  const innerFace = p.width / 2 - TUBE;
+  const plateInboard = p.width / 2 - p.plate;
+  const oldPlateInboard = p.width / 2 - 2.5;
+  const xClose = p.depth / 2 - p.insetX - 2.25;
+  const zAtOldSwing = rimZAtX(p, Math.max(0, xClose));
+  const zAtPad = rimZAtX(p, p.depth / 2 - p.plate);
+  const items = [
+    {
+      cls: p.plate <= 1.26 && plateInboard >= innerFace - 0.02 ? "good" : "bad",
+      title: "Caster pads stay under the 1×1",
+      body: `Pad ${p.plate.toFixed(2)} in square, flush outboard. Inner edge of pad at ${inch(plateInboard)} from center. Inner face of the side tube is ${inch(innerFace)}. A 2½ in plate flush outboard would land at ${inch(oldPlateInboard)} — under the outer shelf (center ${inch(Math.abs(p.yDiscOuter))}). That was wrong.`
+    },
+    {
+      cls: p.wheel <= 2.01 && p.caster <= 3.01 ? "good" : "warn",
+      title: `Spec: ${p.wheel.toFixed(2)} in phenolic wheel, ${inch(p.caster)} overall`,
+      body: `Not a 3 in furniture wheel. Smaller wheel, less swivel trail, more air under the hanging rim. Steel is fine. Soft rubber is not. Total-lock if you can find it on this size; wheel lock at minimum.`
+    },
+    {
+      cls: zAtPad != null && zAtPad > p.caster + p.plateT + 0.5 ? "good" : "warn",
+      title: "Hanging rim vs pad at the corner",
+      body: `The 21.3 in disc sits on the rails and hangs ${inch(p.drop)} into the well. At the inner edge of the new pad, rim is ${zAtPad == null ? "—" : inch(zAtPad)} AFF. Pad top is ${inch(p.caster + p.plateT)} AFF. Need ≥ ½ in. Outer shelves are the ones that get close.`
+    },
+    {
+      cls: "bad",
+      title: "A normal swivel will swing into the well",
+      body: `Trail on a cheap 3 in swivel is ~2¼ in. From a corner axis that puts the wheel under the disc at X ≈ ${inch(Math.max(0, xClose))}, where the rim is ${zAtOldSwing == null ? "—" : inch(zAtOldSwing)} AFF. That is how a caster ends up in the way of a shelf. Rule: the whole wheel, at every swivel angle, stays outboard of the inner face of the side 1×1 (${inch(innerFace)} from center). If the caster in your hand fails that, do not use it. Stem caster, or rigid on the sides and swivel only on the operator end, then re-check the two outer shelves.`
+    },
+    {
+      cls: "good",
+      title: "Shelves do not come out through the casters",
+      body: `Pull is straight up ~2½ in, then a tilt toward the free end (along the kiln). Not out the side. The well is empty except the hanging bellies. Keep casters under the tubes and that path stays clear.`
+    },
+    {
+      cls: "warn",
+      title: "Do not weld rods on the sitting stripe",
+      body: `The disc rim sits on the top of the front and back 1×1s, in the ${inch(p.t)} stripe between each jaw pair. Rods land at the jaw Y, beside that stripe. Grind slag off the sitting faces. A lump of weld will chip cordierite.`
+    },
+    {
+      cls: "good",
+      title: "Angled bracket is 1×1×⅛ × 2 in",
+      body: `Two of them, inside the back-post feet. The sloped parts are ${inch(p.rod, 3)} round × ${inch(p.rodLen)}, not 1 in bar.`
+    },
+    {
+      cls: p.tipY >= 22 ? "good" : "warn",
+      title: `Tip toward the kiln is ${deg(p.tipY)}`,
+      body: `Better than the 11 in cart, still not a warehouse pallet jack. Roll into the aisle, lock, then pull a shelf. Handles on the ends, not the kiln side.`
+    },
+    {
+      cls: "warn",
+      title: "No keeper on the simple cart",
+      body: `A hard hop on tile can bounce a disc. Walk the cart. If it hops in use, add a hinged ⅛ × ¾ flat across the tops. Not on the first cut.`
+    },
+    {
+      cls: "warn",
+      title: "Tape the bay and one shelf before steel",
+      body: `Spoken pinch is ~14 in. Confirm at the floor, at 13 AFF, and at 26 AFF. Confirm D, t, and weight of a real Garden City disc. If the real pinch is under 13¼, stop. Caster wheels must stay inside ${inch(p.width)}.`
+    },
+    {
+      cls: "good",
+      title: "Rods square the back",
+      body: `The back rectangle can rack until the rods are on. Square it, tack the rods, then finish. ⅛ in fillets. ¼ in rods are locators. The rails carry the weight.`
+    },
+    {
+      cls: p.belly >= 1.75 ? "good" : "warn",
+      title: `Belly is ${inch(p.belly)} off the floor`,
+      body: `Includes the ¼ in pad under the tube. Grout and a dropped post fit. A 2×4 does not, and should not.`
+    }
+  ];
+  $("review").innerHTML = items.map((c) =>
+    `<div class="check ${c.cls}"><i></i><div><strong>${c.title}</strong><span>${c.body}</span></div></div>`
+  ).join("");
+}
+
+function stationsFromLeftOutside(p) {
+  const out = [];
+  for (let i = 0; i < p.n; i++) {
+    const left = TUBE + SIDE_PAD + i * (p.channel + p.air) + p.rod / 2;
+    const right = left + p.rod + (p.t + SLOT_C);
+    out.push({ shelf: i + 1, side: "L", z: left });
+    out.push({ shelf: i + 1, side: "R", z: right });
+  }
+  return out;
+}
+
+function svgDimH(x1, x2, y, text) {
+  return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#B85C53"/>
+    <line x1="${x1}" y1="${y - 4}" x2="${x1}" y2="${y + 4}" stroke="#B85C53"/>
+    <line x1="${x2}" y1="${y - 4}" x2="${x2}" y2="${y + 4}" stroke="#B85C53"/>
+    <text x="${(x1 + x2) / 2}" y="${y - 6}" text-anchor="middle" fill="#B85C53" font-family="ui-monospace,Menlo,monospace" font-size="11">${text}</text>`;
+}
+function svgDimV(x, y1, y2, text) {
+  return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#B85C53"/>
+    <line x1="${x - 4}" y1="${y1}" x2="${x + 4}" y2="${y1}" stroke="#B85C53"/>
+    <line x1="${x - 4}" y1="${y2}" x2="${x + 4}" y2="${y2}" stroke="#B85C53"/>
+    <text x="${x + 8}" y="${(y1 + y2) / 2 + 4}" fill="#B85C53" font-family="ui-monospace,Menlo,monospace" font-size="11">${text}</text>`;
+}
+
+function renderBuild(p) {
+  if (!$("s1-copy")) return;
+  const side = Math.max(0, p.depth - 2 * TUBE);
+  const st = stationsFromLeftOutside(p);
+
+  $("s1-copy").textContent =
+    `1×1×14 ga HSS. Front rail ${inch(p.width)}. Back rail ${inch(p.width)}. Two sides ${inch(side)}, between the longs. Outside: ${inch(p.width)} wide × ${inch(p.depth)} deep. Magnet-square. ⅛ in fillet at all four corners. Front and back rails carry the shelves.`;
+
+  $("s2-copy").textContent =
+    `Two posts ${inch(p.post)}, flush to the back corners, standing on the back rail. Cap with a ${inch(p.width)} top rail. That is the second rectangle. It shares the back bottom tube. Then weld two 1×1×⅛ in angle gussets, ${inch(p.gussetLen)} long, inside the back-post-to-base corners. Yes — the angled bracket is 1 in angle, ⅛ in thick, 2 in long. Not 1 in rod.`;
+
+  $("s3-copy").textContent =
+    `Do not buy a 3 in furniture caster on a 2½ in plate. That plate sits under the outer shelves. Use a 2 in phenolic wheel, ${inch(p.caster)} overall height, pad ${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} × ¼ in, flush to the outside corner so nothing crosses the inner face of the 1×1. Axis ${inch(p.insetY)} in from the side, ${inch(p.insetX)} in from the end. If the swivel you hold can swing inboard of that inner face, it is the wrong caster — get a stem caster or rigid sides plus swivel only on the operator end. Soft rubber is illegal next to the kiln.`;
+
+  $("s4-copy").textContent =
+    `${p.rods} rods, ${inch(p.rod, 3)} Ø × ${inch(p.rodLen)} long. Weld to the top of the front rail and the front of the top back rail. Run ${inch(p.run)}, rise ${inch(p.rise)}, angle ${deg(p.angle)} from the floor. Two rods per shelf: ${inch(p.t + p.slop)} clear inside the pair (shelf plus ⅛ in), then ${inch(p.air)} air, then the next pair. Stations are rod center from the left outside face. Jig: one MDF block ${inch(p.t + p.slop)}, one ${inch(p.air)}. Tack, drop a real shelf, then finish-weld. ⅛ in fillet at each rod end.`;
+
+  const W = p.width, D = p.depth;
+  const ox = 48, oy = 36, sc = 14;
+  const pw = W * sc, ph = D * sc;
+  $("s1-svg").innerHTML = `<svg viewBox="0 0 ${pw + 100} ${ph + 72}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${ox}" y="${oy}" width="${pw}" height="${ph}" fill="#fff" stroke="#2A2322" stroke-width="2"/>
+    <rect x="${ox}" y="${oy}" width="${pw}" height="${sc}" fill="#2A2322" opacity="0.08"/>
+    <rect x="${ox}" y="${oy + ph - sc}" width="${pw}" height="${sc}" fill="#2A2322" opacity="0.08"/>
+    <text x="${ox + pw / 2}" y="${oy - 10}" text-anchor="middle" font-size="11" fill="#2A2322">front · ${inch(p.width)} of 1×1 · shelves sit on this rail</text>
+    <text x="${ox + pw / 2}" y="${oy + ph + 14}" text-anchor="middle" font-size="11" fill="#2A2322">back · posts stand on this rail</text>
+    ${svgDimH(ox, ox + pw, oy + ph + 32, inch(W) + " outside")}
+    ${svgDimV(ox + pw + 20, oy, oy + ph, inch(D) + " outside")}
+  </svg>`;
+
+  const sc2 = 7;
+  const dw = D * sc2;
+  const postH = (p.post + TUBE) * sc2;
+  const bx = 56, by = 28;
+  $("s2-svg").innerHTML = `<svg viewBox="0 0 ${dw + 150} ${postH + 90}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${bx}" y="${by + postH - TUBE * sc2}" width="${dw}" height="${TUBE * sc2}" fill="#fff" stroke="#2A2322" stroke-width="2"/>
+    <rect x="${bx}" y="${by}" width="${TUBE * sc2}" height="${postH}" fill="#fff" stroke="#2A2322" stroke-width="2"/>
+    <path d="M${bx + TUBE * sc2 + 2} ${by + postH - TUBE * sc2 - 2} L${bx + TUBE * sc2 + 2} ${by + postH - TUBE * sc2 - 16} L${bx + TUBE * sc2 + 16} ${by + postH - TUBE * sc2 - 2} Z" fill="#B85C53" opacity="0.85"/>
+    <text x="${bx + TUBE * sc2 + 20}" y="${by + postH - TUBE * sc2 - 8}" font-size="11" fill="#B85C53">1×1×⅛ angle × ${inch(p.gussetLen)}</text>
+    <text x="${bx + 4}" y="${by - 8}" font-size="11" fill="#2A2322">back rectangle</text>
+    <text x="${bx + dw - 4}" y="${by + postH + 14}" text-anchor="end" font-size="11" fill="#2A2322">front</text>
+    ${svgDimH(bx, bx + dw, by + postH + 32, inch(D) + " depth")}
+    ${svgDimV(bx + dw + 24, by, by + p.post * sc2, inch(p.post) + " posts")}
+  </svg>`;
+
+  $("s3-svg").innerHTML = `<svg viewBox="0 0 ${pw + 100} ${ph + 64}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${ox}" y="${oy}" width="${pw}" height="${ph}" fill="#fff" stroke="#2A2322" stroke-width="2"/>
+    ${[[ox + 20, oy + 20],[ox + pw - 20, oy + 20],[ox + 20, oy + ph - 20],[ox + pw - 20, oy + ph - 20]].map(([cx, cy]) =>
+      `<rect x="${cx - 10}" y="${cy - 10}" width="20" height="20" fill="none" stroke="#3F6964" stroke-width="1.5"/>
+       <circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="#3F6964" stroke-width="1.5"/>
+       <circle cx="${cx}" cy="${cy}" r="2" fill="#3F6964"/>`
+    ).join("")}
+    <text x="${ox + pw / 2}" y="${oy + ph / 2 - 4}" text-anchor="middle" font-size="11" fill="#3F6964">${p.plate.toFixed(2)} in pads, flush outboard</text>
+    <text x="${ox + pw / 2}" y="${oy + ph / 2 + 12}" text-anchor="middle" font-size="11" fill="#3F6964">2 in wheel · ${inch(p.caster)} overall</text>
+  </svg>`;
+
+  const sc4 = 22;
+  const rw = W * sc4, rx = 40, ry = 36;
+  let rodsSvg = `<rect x="${rx}" y="${ry}" width="${rw}" height="40" fill="#fff" stroke="#2A2322"/>`;
+  rodsSvg += `<rect x="${rx}" y="${ry}" width="${TUBE * sc4}" height="40" fill="#2A2322" opacity="0.12"/>`;
+  rodsSvg += `<rect x="${rx + rw - TUBE * sc4}" y="${ry}" width="${TUBE * sc4}" height="40" fill="#2A2322" opacity="0.12"/>`;
+  for (let i = 0; i < p.n; i++) {
+    const L = st[i * 2], R = st[i * 2 + 1];
+    const x1 = rx + L.z * sc4, x2 = rx + R.z * sc4;
+    rodsSvg += `<rect x="${x1}" y="${ry + 6}" width="${Math.max(2, x2 - x1)}" height="28" fill="#B85C53" opacity="0.2"/>`;
+    rodsSvg += `<line x1="${x1}" y1="${ry + 4}" x2="${x1}" y2="${ry + 36}" stroke="#B85C53" stroke-width="2"/>`;
+    rodsSvg += `<line x1="${x2}" y1="${ry + 4}" x2="${x2}" y2="${ry + 36}" stroke="#B85C53" stroke-width="2"/>`;
+    rodsSvg += `<text x="${(x1 + x2) / 2}" y="${ry - 8}" text-anchor="middle" font-size="11" fill="#B85C53">S${i + 1}</text>`;
+  }
+  $("s4-svg").innerHTML = `<svg viewBox="0 0 ${rw + 80} 100" xmlns="http://www.w3.org/2000/svg">${rodsSvg}
+    ${svgDimH(rx, rx + rw, ry + 62, inch(W) + " outside")}
+    <text x="${rx + rw / 2}" y="96" text-anchor="middle" font-size="11" fill="#6B5E56">pairs = jaws · numbers in the table, not stacked on the drawing</text>
+  </svg>`;
+
+  $("rod-table").innerHTML = "<tr><th>#</th><th>Shelf</th><th>Jaw</th><th>Center from left outside</th></tr>" +
+    st.map((s, i) => `<tr><td>${i + 1}</td><td>${s.shelf}</td><td>${s.side === "L" ? "left" : "right"}</td><td>${s.z.toFixed(3)} in</td></tr>`).join("") +
+    `<tr><td colspan="3">Pair inside (jig A)</td><td>${inch(p.t + p.slop)}</td></tr>` +
+    `<tr><td colspan="3">Air between pairs (jig B)</td><td>${inch(p.air)}</td></tr>` +
+    `<tr><td colspan="3">Rod Ø × cut length</td><td>${inch(p.rod, 3)} × ${inch(p.rodLen)}</td></tr>` +
+    `<tr><td colspan="3">Angle from floor</td><td>${deg(p.angle)}</td></tr>`;
+}
+
+function writeHash(p) {
+  const q = new URLSearchParams({
+    d: p.D, t: p.t, n: p.n, depth: p.depth, w: p.width, rod: p.rod, post: p.post, cast: p.caster,
+  });
+  try { history.replaceState(null, "", "#" + q.toString()); } catch (e) { /* file:// */ }
+}
+
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const map = { d: "diam", t: "thick", n: "count", depth: "depth", w: "owidth", rod: "rod", post: "post", cast: "cast" };
+  for (const [k, id] of Object.entries(map)) {
+    if (q.has(k)) $(id).value = q.get(k);
+  }
+}
+
+function refreshPanel() {
+  const p = derive();
+  renderPanel(p);
+  writeHash(p);
+  const h = location.hash || "";
+  const b = $("btn-build"); if (b) b.href = "build.html" + h;
+  const m = $("btn-model"); if (m) m.href = "index.html" + h;
+  return p;
+}
+
+readHash();
+refreshPanel();
+for (const el of Object.values(inputs)) {
+  if (!el) continue;
+  el.addEventListener("input", () => {
+    const p = refreshPanel();
+    if (window.__rebuild3d) window.__rebuild3d(p);
+  });
+}
+
+// --- 3D (optional — measurements already live without WebGL) ---
+if (!$("view")) {
+  /* build page — no WebGL */
+} else if (typeof THREE === "undefined") {
+  if ($("boot-error")) { $("boot-error").style.display = "block"; $("boot-error").textContent = "3D library did not load.";
+  }
+} else try {
+
+const view = $("view");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x2A2322, 1);
+renderer.shadowMap.enabled = true;
+view.appendChild(renderer.domElement);
+
+const labelLayer = document.createElement("div");
+labelLayer.id = "labels";
+view.appendChild(labelLayer);
+const dimTags = [];
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x2A2322, 80, 160);
+const camera = new THREE.PerspectiveCamera(48, 1, 1, 800);
+const controls = MiniOrbit(camera, renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xfff1dd, 0x1a1814, 1.1));
+const sun = new THREE.DirectionalLight(0xffe6c8, 1.35);
+sun.position.set(20, 40, 18);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.near = 2;
+sun.shadow.camera.far = 90;
+sun.shadow.camera.left = -30;
+sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;
+sun.shadow.camera.bottom = -30;
+scene.add(sun);
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(120, 120),
+  new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.95, metalness: 0 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+const grid = new THREE.GridHelper(80, 80, 0x4a4338, 0x2e2a24);
+grid.position.y = 0.01;
+scene.add(grid);
+
+const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa3aa, metalness: 0.72, roughness: 0.38 });
+const rodMat = new THREE.MeshStandardMaterial({ color: 0xb7c0c6, metalness: 0.78, roughness: 0.32 });
+const discMat = new THREE.MeshStandardMaterial({ color: 0xc4a06a, metalness: 0.05, roughness: 0.86 });
+const discEdge = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, metalness: 0.05, roughness: 0.8 });
+const casterMat = new THREE.MeshStandardMaterial({ color: 0x3a3a38, metalness: 0.2, roughness: 0.7 });
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x6b655c, transparent: true, opacity: 0.18, roughness: 1, metalness: 0, side: THREE.DoubleSide });
+const kilnMat = new THREE.MeshStandardMaterial({ color: 0xc4784a, transparent: true, opacity: 0.16, roughness: 0.8, metalness: 0.1 });
+
+const root = new THREE.Group();
+scene.add(root);
+
+function box(l, w, h, mat = steelMat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(l, h, w), mat);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+function cyl(rTop, rBot, h, mat, seg = 24) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, seg), mat);
+  m.castShadow = true;
+  return m;
+}
+function rodBetween(a, b, dia) {
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const len = dir.length();
+  const m = cyl(dia / 2, dia / 2, len, rodMat, 16);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  return m;
+}
+
+function dimLine(a, b, text, color = 0xe0a24a) {
+  const g = new THREE.Group();
+  const geo = new THREE.BufferGeometry().setFromPoints([a, b]);
+  g.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color })));
+  const el = document.createElement("div");
+  el.className = "dim-label";
+  el.textContent = text;
+  el.style.display = "none";
+  labelLayer.appendChild(el);
+  dimTags.push({ el, pos: a.clone().add(b).multiplyScalar(0.5) });
+  return g;
+}
+
+function rebuild() {
+  const p = derive();
+  renderPanel(p);
+  writeHash(p);
+
+  dimTags.splice(0).forEach((d) => d.el.remove());
+
+  while (root.children.length) {
+    const ch = root.children.pop();
+    ch.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+    });
+    root.remove(ch);
+  }
+
+  const g = new THREE.Group();
+  const W = p.width;
+  const D = p.depth;
+  const y0 = p.caster + p.plateT;
+
+  // Bottom rectangle. Longs along width (Z), sides along depth (X).
+  const front = box(TUBE, W, TUBE);
+  front.position.set(D / 2 - TUBE / 2, y0 + TUBE / 2, 0);
+  const back = box(TUBE, W, TUBE);
+  back.position.set(-D / 2 + TUBE / 2, y0 + TUBE / 2, 0);
+  const sideL = box(Math.max(0.2, D - 2 * TUBE), TUBE, TUBE);
+  sideL.position.set(0, y0 + TUBE / 2, W / 2 - TUBE / 2);
+  const sideR = sideL.clone();
+  sideR.position.z = -W / 2 + TUBE / 2;
+  g.add(front, back, sideL, sideR);
+
+  // Back posts + top rail
+  const postH = p.post;
+  const postY = y0 + TUBE + postH / 2;
+  const postX = -D / 2 + TUBE / 2;
+  const postL = box(TUBE, TUBE, postH);
+  postL.position.set(postX, postY, W / 2 - TUBE / 2);
+  const postR = postL.clone();
+  postR.position.z = -W / 2 + TUBE / 2;
+  const top = box(TUBE, W, TUBE);
+  top.position.set(postX, y0 + TUBE + postH - TUBE / 2, 0);
+  g.add(postL, postR, top);
+
+  // Casters tucked under the 1×1, not on 2½ in plates in the well
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const c = new THREE.Group();
+      const pad = box(p.plate, p.plate, p.plateT, casterMat);
+      pad.position.y = p.caster + p.plateT / 2;
+      const stem = cyl(0.16, 0.16, Math.max(0.35, p.caster - p.wheel * 0.55), casterMat);
+      stem.position.y = p.caster * 0.62;
+      const wheel = cyl(p.wheel / 2, p.wheel / 2, 0.75, casterMat, 20);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.y = p.wheel / 2;
+      c.add(pad, stem, wheel);
+      c.position.set(sx * (D / 2 - p.insetX), 0, sz * (W / 2 - p.insetY));
+      g.add(c);
+    }
+  }
+
+  // Two jaws per shelf, then a dedicated air spacer.
+  const zInner = -W / 2 + TUBE + SIDE_PAD;
+  const aFront = new THREE.Vector3(D / 2 - TUBE / 2, p.railTop, 0);
+  const aBack = new THREE.Vector3(-D / 2 + TUBE / 2, p.overallH - TUBE / 2, 0);
+  const discZ = [];
+  for (let i = 0; i < p.n; i++) {
+    const left = zInner + i * (p.channel + p.air) + p.rod / 2;
+    const right = left + p.rod + (p.t + SLOT_C);
+    discZ.push((left + right) / 2);
+    for (const z of [left, right]) {
+      const a = aFront.clone(); a.z = z;
+      const b = aBack.clone(); b.z = z;
+      g.add(rodBetween(a, b, p.rod));
+    }
+  }
+
+  if (inputs.showDiscs.checked && p.drop != null) {
+    const cy = p.railTop + (p.r - p.drop);
+    for (let i = 0; i < p.n; i++) {
+      const disc = cyl(p.r, p.r, p.t, discMat, 64);
+      disc.rotation.x = Math.PI / 2;
+      disc.position.set(0, cy, discZ[i]);
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(p.r - 0.04, 0.05, 8, 64),
+        discEdge
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.copy(disc.position);
+      g.add(disc, ring);
+    }
+  }
+
+  // Bay: wall at +Z, kiln beyond 14 in pinch measured from wall through the cart.
+  if (inputs.showBay.checked) {
+    const wallZ = W / 2 + 1.2;
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(50, 40), wallMat);
+    wall.position.set(4, 20, wallZ);
+    wall.rotation.y = Math.PI;
+    g.add(wall);
+    const kiln = box(36.7, 16, 39.4, kilnMat);
+    kiln.position.set(6, 39.4 / 2, wallZ - PINCH - 8);
+    kiln.castShadow = false;
+    g.add(kiln);
+    const pinch = dimLine(
+      new THREE.Vector3(D / 2 + 1, 2, wallZ),
+      new THREE.Vector3(D / 2 + 1, 2, wallZ - PINCH),
+      "14 in pinch",
+      0xd4654a
+    );
+    g.add(pinch);
+  }
+
+  if (inputs.showDims.checked) {
+    g.add(dimLine(new THREE.Vector3(-D / 2, 0.4, -W / 2 - 1.2), new THREE.Vector3(D / 2, 0.4, -W / 2 - 1.2), `depth ${p.depth.toFixed(2)}`));
+    g.add(dimLine(new THREE.Vector3(D / 2 + 1.4, 0.4, -W / 2), new THREE.Vector3(D / 2 + 1.4, 0.4, W / 2), `width ${p.width.toFixed(2)}`));
+    g.add(dimLine(new THREE.Vector3(-D / 2 - 1.6, 0, W / 2 + 0.4), new THREE.Vector3(-D / 2 - 1.6, p.overallH, W / 2 + 0.4), `H ${p.overallH.toFixed(2)}`, 0x7dba6f));
+    if (p.drop != null) {
+      g.add(dimLine(
+        new THREE.Vector3(-D / 2 + TUBE / 2, p.railTop + 0.15, W / 2 + 1.6),
+        new THREE.Vector3(D / 2 - TUBE / 2, p.railTop + 0.15, W / 2 + 1.6),
+        `span ${p.s.toFixed(2)} · drop ${p.drop.toFixed(2)}`,
+        0x7dba6f
+      ));
+    }
+  }
+
+  root.add(g);
+}
+
+function resize() {
+  const w = view.clientWidth;
+  const h = view.clientHeight;
+  camera.aspect = w / Math.max(1, h);
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+
+function tick() {
+  controls.update();
+  renderer.render(scene, camera);
+  const w = view.clientWidth, h = view.clientHeight;
+  const tmp = new THREE.Vector3();
+  for (const d of dimTags) {
+    tmp.copy(d.pos).project(camera);
+    const x = (tmp.x * 0.5 + 0.5) * w;
+    const y = (-tmp.y * 0.5 + 0.5) * h;
+    if (tmp.z > 1 || y < 18 || y > h - 28 || x < 24 || x > w - 24) {
+      d.el.style.display = "none"; continue;
+    }
+    d.el.style.display = "block";
+    d.el.style.left = x + "px";
+    d.el.style.top = y + "px";
+  }
+  requestAnimationFrame(tick);
+}
+
+window.__rebuild3d = rebuild;
+rebuild(derive());
+resize();
+controls.reset();
+tick();
+addEventListener("resize", resize);
+if ($("btn-reset")) $("btn-reset").onclick = () => { controls.reset(); };
+} catch (err) {
+  if ($("boot-error")) {
+    $("boot-error").style.display = "block";
+    $("boot-error").textContent = "3D view failed: " + (err && err.message ? err.message : err);
+  }
+  console.error(err);
+}
+
+if ($("btn-print")) $("btn-print").onclick = () => window.print();
+const share = $("btn-share");
+if (share) share.onclick = async () => {
+  const url = location.href;
+  try {
+    await navigator.clipboard.writeText(url);
+    $("btn-share").textContent = "Copied";
+    setTimeout(() => { $("btn-share").textContent = "Copy share link"; }, 1400);
+  } catch {
+    prompt("Copy this link", url);
+  }
+};

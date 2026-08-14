@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Build guidance · Kiln-shelf cart · Earth Arts Pottery Studio</title>
+<link rel="stylesheet" href="cart.css">
+</head>
+<body class="page-build">
+<header class="brand">
+  <a class="mark" href="https://earthartspottery.com" target="_blank" rel="noopener">
+    <img src="logo-lockup.svg" alt="Earth Arts Pottery Studio">
+  </a>
+  <div class="titles">
+    <p class="eyebrow">Garden City · 659 Franklin Ave</p>
+    <h1>Build <em>guidance</em></h1>
+  </div>
+  <div class="hud-actions">
+    <a class="btn" id="btn-model" href="index.html">3D model</a>
+    <button id="btn-print" type="button">Print</button>
+    <button id="btn-share" type="button">Copy share link</button>
+  </div>
+</header>
+
+<div class="controls">
+  <div>
+    <label class="row">Diameter <b id="v-diam"></b></label>
+    <input id="diam" type="range" min="20" max="26" step="0.05" value="21.3">
+    <label class="row">Thickness <b id="v-thick"></b></label>
+    <input id="thick" type="range" min="0.47" max="0.75" step="0.01" value="0.63">
+    <label class="row">How many <b id="v-count"></b></label>
+    <input id="count" type="range" min="4" max="7" step="1" value="6">
+    <label class="row">Width <b id="v-width"></b></label>
+    <input id="owidth" type="range" min="11" max="13.5" step="0.125" value="13">
+  </div>
+  <div>
+    <label class="row">Depth <b id="v-depth"></b></label>
+    <input id="depth" type="range" min="11" max="20" step="0.25" value="13">
+    <label class="row">Rod Ø <b id="v-rod"></b></label>
+    <input id="rod" type="range" min="0.25" max="0.5" step="0.0625" value="0.25">
+    <label class="row">Back height <b id="v-post"></b></label>
+    <input id="post" type="range" min="14" max="24" step="0.25" value="20">
+    <label class="row">Caster height <b id="v-cast"></b></label>
+    <input id="cast" type="range" min="2.5" max="3.25" step="0.125" value="2.75">
+  </div>
+</div>
+<p class="note" id="thick-note" style="max-width:860px;margin:8px auto 0;padding:0 18px"></p>
+<div class="hang" id="hang" style="max-width:860px;margin:12px auto;padding:0 18px"></div>
+<p class="note" id="hang-note" style="max-width:860px;margin:0 auto 8px;padding:0 18px"></p>
+<div style="display:none">
+  <div id="checks"></div>
+  <table id="meas"></table>
+  <table id="cuts"></table>
+</div>
+
+<section id="build">
+  <h2>For the welder</h2>
+  <p class="build-lead">Two rectangles. Four casters. Rods on a tape.</p>
+  <p class="build-sub">All-metal, MIG, 1×1×14 ga square tube. Numbers follow the sliders. Tape the real Garden City shelf before you cut the rods. Not a purchase order.</p>
+  <div class="build-bar">
+    <a class="btn" id="btn-model-2" href="index.html">Back to 3D model</a>
+  </div>
+  <div class="steps">
+    <article class="step">
+      <header><span class="num">Step 1</span><h3>Weld the bottom rectangle</h3></header>
+      <p id="s1-copy"></p>
+      <div id="s1-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 2</span><h3>Stand the back rectangle on it</h3></header>
+      <p id="s2-copy"></p>
+      <div id="s2-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 3</span><h3>Bolt the casters</h3></header>
+      <p id="s3-copy"></p>
+      <div id="s3-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 4</span><h3>Weld the rods</h3></header>
+      <p id="s4-copy"></p>
+      <div id="s4-svg"></div>
+      <table class="stations" id="rod-table"></table>
+    </article>
+  </div>
+
+  <h2 style="margin-top:28px">Critical review</h2>
+  <p class="build-sub">What was wrong, what we changed, and what still has to be true when you buy hardware.</p>
+  <div class="checks" id="review"></div>
+</section>
+<script src="cart.js"></script>
+<script>
+  const m2 = document.getElementById("btn-model-2");
+  if (m2) {
+    const sync = () => { m2.href = "index.html" + (location.hash || ""); };
+    sync();
+    addEventListener("hashchange", sync);
+  }
+</script>
+</body>
+</html>
