@@ -112,6 +112,13 @@
   .note { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
   .tog { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
   .hint { position: absolute; left: 14px; bottom: 12px; color: rgba(251,243,231,0.55); font-size: 11px; pointer-events: none; z-index: 3; }
+  .hang {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;
+  }
+  .hang div { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .hang b { display: block; font-family: var(--mono); font-size: 18px; letter-spacing: -0.03em; }
+  .hang.bad b { color: var(--bad); }
+  .hang span { color: var(--muted); font-size: 11px; }
   aside .studio-link { display: inline-block; margin-top: 14px; color: var(--clay); font-weight: 700; text-decoration: none; font-size: 13px; }
   aside .studio-link:hover { text-decoration: underline; }
   #build {
@@ -196,7 +203,7 @@
     <p class="note">13 in is 1 in under the spoken 14 in pinch. Extra width is extra track — that is the stability you can actually buy. Do not go to 14.</p>
     <label class="row">Cradle depth, outside <b id="v-depth"></b></label>
     <input id="depth" type="range" min="11" max="20" step="0.25" value="13">
-    <p class="note">This is the support span. Keep it near 12–14 in. An 18 in run sinks a 21.3 in disc almost 5 in.</p>
+    <p class="note">Keep this near 13 in. That hangs the disc <b>1.85 in</b> below the rails — not 5 in. An 18 in cart (Mike’s video) is the 5 in sink, and the disc hits the floor.</p>
     <label class="row">Rod diameter <b id="v-rod"></b></label>
     <input id="rod" type="range" min="0.25" max="0.5" step="0.0625" value="0.25">
     <p class="note">Two rods per shelf, then a spacer. 1/4 in jaws leave more air between faces. 3/8 in if you want stiffer rods.</p>
@@ -207,8 +214,11 @@
     <p class="note">2.75 in overall, 2 in phenolic wheel. Not a 3 in furniture caster on a 2½ in plate — that plate and the swivel swing into the shelves. See the review below.</p>
 
     <label class="tog"><input id="show-discs" type="checkbox" checked> Show shelves</label>
-    <label class="tog"><input id="show-bay" type="checkbox" checked> Show wall / 14 in pinch / kiln</label>
+    <label class="tog"><input id="show-bay" type="checkbox"> Show wall / 14 in pinch / kiln</label>
     <label class="tog"><input id="show-dims" type="checkbox" checked> Show 3D dimensions</label>
+
+    <div class="hang" id="hang"></div>
+    <p class="note" id="hang-note"></p>
 
     <h2>Support check</h2>
     <div class="checks" id="checks"></div>
@@ -272,8 +282,8 @@ function MiniOrbit(camera, el) {
   const spherical = new THREE.Spherical();
   const offset = new THREE.Vector3();
   function frame() {
-    target.set(0, 12, 0);
-    spherical.set(78, 1.18, 0.72);
+    target.set(0, 11, 0);
+    spherical.set(120, 1.15, 0.85);
   }
   frame();
   let mode = null, lx = 0, ly = 0;
@@ -303,7 +313,7 @@ function MiniOrbit(camera, el) {
   el.addEventListener("wheel", (e) => {
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    spherical.radius = Math.min(160, Math.max(36, spherical.radius * (1 + e.deltaY * 0.001)));
+    spherical.radius = Math.min(220, Math.max(70, spherical.radius * (1 + e.deltaY * 0.0007)));
   }, { passive: false });
   el.addEventListener("contextmenu", (e) => e.preventDefault());
   return {
@@ -448,6 +458,18 @@ function renderPanel(p) {
   $("v-post").textContent = inch(p.post, 2);
   $("v-cast").textContent = inch(p.caster, 2);
   $("thick-note").textContent = `About ${lb(p.massEach)} if density is 2.1 g/cm³. Kit copy never gave thickness. 16 mm is only a reference.`;
+  const hangEl = $("hang");
+  if (hangEl) {
+    hangEl.className = "hang" + (p.belly != null && p.belly < 1.2 ? " bad" : "");
+    hangEl.innerHTML = `
+      <div><b>${p.drop == null ? "—" : inch(p.drop)}</b><span>below the rails (the hang). Not 5 in.</span></div>
+      <div><b>${p.belly == null ? "—" : inch(p.belly)}</b><span>air under the belly to the floor</span></div>`;
+    $("hang-note").textContent = p.belly != null && p.belly < 0
+      ? "Not enough space. The disc is through the floor. Shorten the cradle depth."
+      : p.drop != null && p.drop > 3.2
+        ? "That hang is the 18 in-deep failure. Bring depth back to 13 in."
+        : "Enough space. 1.85 in hang on a 12 in span, about 2 in to the tile. 5 in is only if you copy Mike’s 18 in run — then the disc hits the floor.";
+  }
 
   $("checks").innerHTML = checks(p).map((c) =>
     `<div class="check ${c.cls}"><i></i><div><strong>${c.title}</strong><span>${c.body}</span></div></div>`
@@ -750,7 +772,7 @@ const dimTags = [];
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x2A2322, 80, 160);
-const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 500);
+const camera = new THREE.PerspectiveCamera(48, 1, 1, 800);
 const controls = MiniOrbit(camera, renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(0xfff1dd, 0x1a1814, 1.1));
@@ -980,6 +1002,7 @@ function tick() {
 window.__rebuild3d = rebuild;
 rebuild(derive());
 resize();
+controls.reset();
 tick();
 addEventListener("resize", resize);
 $("btn-reset").onclick = () => { controls.reset(); };
