@@ -43,8 +43,8 @@
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--ivory); color: var(--ink); font: 14px/1.45 var(--sans); }
-  body { display: grid; grid-template-rows: auto 1fr; }
+  html, body { margin: 0; min-height: 100%; background: var(--ivory); color: var(--ink); font: 14px/1.45 var(--sans); }
+  body { display: grid; grid-template-rows: auto minmax(68vh, 1fr) auto; }
   header.brand {
     display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
     padding: 10px 18px; background: var(--ivory);
@@ -67,8 +67,9 @@
   button, .btn {
     appearance: none; border: 1px solid var(--ink); background: var(--ivory); color: var(--ink);
     font: 700 12px/1 var(--sans); padding: 8px 12px; border-radius: 999px; cursor: pointer;
+    text-decoration: none; display: inline-block;
   }
-  button:hover { background: var(--ink); color: var(--ivory); }
+  button:hover, .btn:hover { background: var(--ink); color: var(--ivory); }
   #app { display: grid; grid-template-columns: 1fr minmax(300px, 380px); min-height: 0; }
   #view { position: relative; min-height: 280px; background: #2A2322; overflow: hidden; }
   #view canvas { display: block; width: 100%; height: 100%; }
@@ -108,10 +109,46 @@
   .hint { position: absolute; left: 14px; bottom: 12px; color: rgba(251,243,231,0.55); font-size: 11px; pointer-events: none; z-index: 3; }
   aside .studio-link { display: inline-block; margin-top: 14px; color: var(--clay); font-weight: 700; text-decoration: none; font-size: 13px; }
   aside .studio-link:hover { text-decoration: underline; }
+  #build {
+    background: var(--ivory); border-top: 1px solid var(--line);
+    padding: 28px 18px 64px; max-width: 1100px; margin: 0 auto; width: 100%;
+  }
+  #build > h2 {
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay); margin: 0 0 6px;
+  }
+  #build .build-lead {
+    font-family: var(--serif); font-style: italic; font-size: 26px; line-height: 1.2;
+    margin: 0 0 8px; font-weight: 300; color: var(--ink);
+  }
+  #build .build-sub { color: var(--muted); max-width: 62ch; margin: 0 0 22px; }
+  .steps { display: grid; gap: 18px; }
+  .step {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 14px 10px; break-inside: avoid;
+  }
+  .step header {
+    display: flex; gap: 12px; align-items: baseline; margin-bottom: 8px;
+    background: none; border: 0; padding: 0;
+  }
+  .step .num {
+    font: 700 12px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--clay);
+  }
+  .step h3 { margin: 0; font-size: 18px; letter-spacing: -0.03em; }
+  .step p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .step svg { width: 100%; height: auto; display: block; background: var(--ivory); border-radius: 8px; }
+  .stations { width: 100%; margin-top: 8px; }
+  .build-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 18px; }
   @media (max-width: 840px) {
     #app { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
     aside { border-left: 0; border-top: 1px solid var(--line); }
     header.brand a.mark img { height: 28px; }
+  }
+  @media print {
+    header.brand .hud-actions, #app, .build-bar, .studio-link, #boot-error { display: none !important; }
+    body { display: block; }
+    #build { padding: 0; max-width: none; }
+    .step { break-inside: avoid; box-shadow: none; }
   }
 </style>
 </head>
@@ -125,6 +162,7 @@
     <h1>Kiln-shelf <em>cart</em></h1>
   </div>
   <div class="hud-actions">
+    <a class="btn" href="#build">Build guidance</a>
     <button id="btn-reset" type="button">Reset view</button>
     <button id="btn-share" type="button">Copy share link</button>
   </div>
@@ -178,6 +216,38 @@
     <a class="studio-link" href="https://earthartspottery.com" target="_blank" rel="noopener">earthartspottery.com →</a>
   </aside>
 </div>
+
+<section id="build">
+  <h2>Build guidance</h2>
+  <p class="build-lead">Two rectangles. Four casters. Rods on a tape.</p>
+  <p class="build-sub">For the welder. All-metal, MIG, 1×1×14 ga square tube. Numbers below follow the sliders on this page. Tape the real Garden City shelf before you cut the rods. Not a purchase order.</p>
+  <div class="build-bar">
+    <button id="btn-print" type="button">Print this page</button>
+  </div>
+  <div class="steps">
+    <article class="step">
+      <header><span class="num">Step 1</span><h3>Weld the bottom rectangle</h3></header>
+      <p id="s1-copy"></p>
+      <div id="s1-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 2</span><h3>Stand the back rectangle on it</h3></header>
+      <p id="s2-copy"></p>
+      <div id="s2-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 3</span><h3>Bolt the casters</h3></header>
+      <p id="s3-copy"></p>
+      <div id="s3-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 4</span><h3>Weld the rods</h3></header>
+      <p id="s4-copy"></p>
+      <div id="s4-svg"></div>
+      <table class="stations" id="rod-table"></table>
+    </article>
+  </div>
+</section>
 
 <div id="boot-error" style="display:none;position:absolute;left:16px;right:16px;top:90px;padding:12px;background:#3a1c14;border:1px solid #d4654a;color:#f3ece2;font:12px/1.4 var(--mono);z-index:5"></div>
 <script src="three.min.js"></script>
@@ -404,6 +474,102 @@ function renderPanel(p) {
   ];
   $("cuts").innerHTML = "<tr><th>Part</th><th>Qty</th><th>Stock</th><th>Len</th></tr>" +
     cuts.map(([a, q, s, l]) => `<tr><td>${a}</td><td>${q}</td><td>${s}</td><td>${inch(l)}</td></tr>`).join("");
+  renderBuild(p);
+}
+
+function stationsFromLeftOutside(p) {
+  const out = [];
+  for (let i = 0; i < p.n; i++) {
+    const left = TUBE + SIDE_PAD + i * (p.channel + p.air) + p.rod / 2;
+    const right = left + p.rod + (p.t + SLOT_C);
+    out.push({ shelf: i + 1, side: "L", z: left });
+    out.push({ shelf: i + 1, side: "R", z: right });
+  }
+  return out;
+}
+
+function svgDim(x1, y1, x2, y2, text, color = "#B85C53") {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" fill="none"/>
+    <text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 4}" text-anchor="middle" fill="${color}" font-family="ui-monospace,Menlo,monospace" font-size="11">${text}</text>`;
+}
+
+function renderBuild(p) {
+  const side = Math.max(0, p.depth - 2 * TUBE);
+  const st = stationsFromLeftOutside(p);
+
+  $("s1-copy").textContent =
+    `Square a ${inch(p.width)} by ${inch(p.depth)} rectangle from 1×1 tube. Front and back rails are ${inch(p.width)}. The two sides sit between them and are ${inch(side)} each. Magnet-square. MIG the four corners. This is the floor of the cart. The front and back rails are what the shelves sit on.`;
+
+  $("s2-copy").textContent =
+    `Stand two ${inch(p.post)} posts on the back rail, flush to the outside corners. Cap them with a ${inch(p.width)} top rail. That is the second rectangle. It shares the back bottom tube with step 1. You now have an L: floor plus back.`;
+
+  $("s3-copy").textContent =
+    `Weld ¼ in plates under the four corners and bolt on four ${inch(p.caster)} total-lock swivel casters, phenolic or steel wheels. Inset the caster axis ${inch(1.15)} from each outer edge so the wheels stay inside the ${inch(p.width)} plan. Soft rubber is not allowed next to the kiln.`;
+
+  $("s4-copy").textContent =
+    `Cut ${p.rods} rods, ${inch(p.rod)} Ø × ${inch(p.rodLen)} long. They run from the top of the front rail to the top back rail at ${deg(p.angle)}. Two rods per shelf: a pair with ${inch(p.t + SLOT_C)} clear between them (shelf plus ⅛ in), then a ${inch(p.air)} air spacer, then the next pair. Stations below are to rod center, measured from the left outside face of the cart. Cut an MDF jig to those two gaps and tack before you finish-weld. Drop a real shelf in before the last pass.`;
+
+  // Step 1 — plan of bottom rectangle
+  const W = p.width, D = p.depth;
+  const s1 = 18, ox = 40, oy = 28, sc = 16;
+  const pw = W * sc, ph = D * sc;
+  $("s1-svg").innerHTML = `<svg viewBox="0 0 ${pw + 90} ${ph + 70}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${ox}" y="${oy}" width="${pw}" height="${ph}" fill="none" stroke="#2A2322" stroke-width="2.2"/>
+    <rect x="${ox}" y="${oy}" width="${pw}" height="${sc}" fill="#2A2322" opacity="0.12"/>
+    <rect x="${ox}" y="${oy + ph - sc}" width="${pw}" height="${sc}" fill="#2A2322" opacity="0.12"/>
+    <text x="${ox + pw / 2}" y="${oy + 12}" text-anchor="middle" font-size="10" fill="#2A2322">front rail · shelves sit here</text>
+    <text x="${ox + pw / 2}" y="${oy + ph - 5}" text-anchor="middle" font-size="10" fill="#2A2322">back rail · posts stand here</text>
+    ${svgDim(ox, oy + ph + 18, ox + pw, oy + ph + 18, inch(W))}
+    ${svgDim(ox + pw + 16, oy, ox + pw + 16, oy + ph, inch(D))}
+  </svg>`;
+
+  // Step 2 — side view, two rectangles
+  const H = p.overallH;
+  const sc2 = 8;
+  const dw = D * sc2, dh = H * sc2, bx = 50, by = 24;
+  $("s2-svg").innerHTML = `<svg viewBox="0 0 ${dw + 120} ${dh + 56}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${bx}" y="${by + (H - TUBE - p.caster) * sc2}" width="${dw}" height="${TUBE * sc2}" fill="none" stroke="#2A2322" stroke-width="2"/>
+    <rect x="${bx}" y="${by}" width="${TUBE * sc2}" height="${(p.post + TUBE) * sc2}" fill="none" stroke="#2A2322" stroke-width="2"/>
+    <line x1="${bx + TUBE * sc2}" y1="${by + TUBE * sc2 / 2}" x2="${bx + dw - TUBE * sc2}" y2="${by + (H - p.caster) * sc2 - 2}" stroke="#B85C53" stroke-width="1.6"/>
+    <text x="${bx + dw / 2}" y="${by + (H - p.caster) * sc2 - 8}" text-anchor="middle" font-size="10" fill="#B85C53">rods go on later →</text>
+    <text x="${bx + 10}" y="${by + 14}" font-size="10" fill="#2A2322">back rectangle</text>
+    <text x="${bx + dw - 8}" y="${by + dh - p.caster * sc2 - 6}" text-anchor="end" font-size="10" fill="#2A2322">front</text>
+    ${svgDim(bx, by + dh + 16, bx + dw, by + dh + 16, inch(D))}
+    ${svgDim(bx + dw + 18, by, bx + dw + 18, by + p.post * sc2, inch(p.post))}
+  </svg>`;
+
+  // Step 3 — casters on plan
+  $("s3-svg").innerHTML = `<svg viewBox="0 0 ${pw + 90} ${ph + 56}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${ox}" y="${oy}" width="${pw}" height="${ph}" fill="none" stroke="#2A2322" stroke-width="2"/>
+    ${[[ox + 18, oy + 18],[ox + pw - 18, oy + 18],[ox + 18, oy + ph - 18],[ox + pw - 18, oy + ph - 18]].map(([cx, cy]) =>
+      `<circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="#3F6964" stroke-width="2"/>
+       <circle cx="${cx}" cy="${cy}" r="2" fill="#3F6964"/>`
+    ).join("")}
+    <text x="${ox + pw / 2}" y="${oy + ph / 2 + 4}" text-anchor="middle" font-size="11" fill="#3F6964">4 lock swivels · wheels inside the plan</text>
+  </svg>`;
+
+  // Step 4 — rod stations across width
+  const sc4 = 28;
+  const rw = W * sc4, rh = 90, rx = 36, ry = 28;
+  let rodsSvg = `<rect x="${rx}" y="${ry}" width="${rw}" height="36" fill="#F4E8D4" stroke="#2A2322"/>`;
+  rodsSvg += `<rect x="${rx}" y="${ry}" width="${TUBE * sc4}" height="36" fill="#2A2322" opacity="0.2"/>`;
+  rodsSvg += `<rect x="${rx + rw - TUBE * sc4}" y="${ry}" width="${TUBE * sc4}" height="36" fill="#2A2322" opacity="0.2"/>`;
+  st.forEach((s, idx) => {
+    const x = rx + s.z * sc4;
+    const pair = Math.floor(idx / 2);
+    rodsSvg += `<line x1="${x}" y1="${ry - 4}" x2="${x}" y2="${ry + 40}" stroke="#B85C53" stroke-width="${Math.max(2, p.rod * sc4)}"/>`;
+    rodsSvg += `<text x="${x}" y="${ry + 54}" text-anchor="middle" font-size="9" fill="#2A2322">${s.z.toFixed(2)}</text>`;
+    if (idx % 2 === 0) {
+      const x2 = rx + st[idx + 1].z * sc4;
+      rodsSvg += `<text x="${(x + x2) / 2}" y="${ry - 8}" text-anchor="middle" font-size="9" fill="#B85C53">S${s.shelf}</text>`;
+    }
+  });
+  $("s4-svg").innerHTML = `<svg viewBox="0 0 ${rw + 70} 88" xmlns="http://www.w3.org/2000/svg">${rodsSvg}
+    <text x="${rx + rw / 2}" y="84" text-anchor="middle" font-size="10" fill="#6B5E56">rod centers from left outside, inches</text>
+  </svg>`;
+
+  $("rod-table").innerHTML = "<tr><th>Rod</th><th>Shelf</th><th>Jaw</th><th>From left outside</th></tr>" +
+    st.map((s, i) => `<tr><td>${i + 1} of ${st.length}</td><td>${s.shelf}</td><td>${s.side === "L" ? "left" : "right"}</td><td>${s.z.toFixed(3)} in</td></tr>`).join("");
 }
 
 function writeHash(p) {
@@ -695,6 +861,7 @@ $("btn-reset").onclick = () => { controls.reset(); };
   console.error(err);
 }
 
+$("btn-print").onclick = () => window.print();
 $("btn-share").onclick = async () => {
   const url = location.href;
   try {
