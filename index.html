@@ -202,9 +202,9 @@
     <p class="note">Two rods per shelf, then a spacer. 1/4 in jaws leave more air between faces. 3/8 in if you want stiffer rods.</p>
     <label class="row">Back height above rails <b id="v-post"></b></label>
     <input id="post" type="range" min="14" max="24" step="0.25" value="20">
-    <label class="row">Caster height <b id="v-cast"></b></label>
-    <input id="cast" type="range" min="2.5" max="4" step="0.25" value="3">
-    <p class="note">Leave this at 3 in. Dropping to 2.5 in lowers the CG about half an inch and puts the disc belly ~1.6 in off the tile. The 13 in width buys more tip resistance than that drop. Do not deepen the cradle to sit lower — that is the “recess too deep” failure.</p>
+    <label class="row">Caster overall height <b id="v-cast"></b></label>
+    <input id="cast" type="range" min="2.5" max="3.25" step="0.125" value="2.75">
+    <p class="note">2.75 in overall, 2 in phenolic wheel. Not a 3 in furniture caster on a 2½ in plate — that plate and the swivel swing into the shelves. See the review below.</p>
 
     <label class="tog"><input id="show-discs" type="checkbox" checked> Show shelves</label>
     <label class="tog"><input id="show-bay" type="checkbox" checked> Show wall / 14 in pinch / kiln</label>
@@ -253,6 +253,10 @@
       <table class="stations" id="rod-table"></table>
     </article>
   </div>
+
+  <h2 style="margin-top:28px">Critical review</h2>
+  <p class="build-sub">What was wrong, what we changed, and what still has to be true when you buy hardware. Read this before you cut or order casters.</p>
+  <div class="checks" id="review"></div>
 </section>
 
 <div id="boot-error" style="display:none;position:absolute;left:16px;right:16px;top:90px;padding:12px;background:#3a1c14;border:1px solid #d4654a;color:#f3ece2;font:12px/1.4 var(--mono);z-index:5"></div>
@@ -347,7 +351,12 @@ function derive() {
   const inner = depth - 2 * TUBE;
   const drop = s >= D ? null : r - Math.sqrt(r * r - (s / 2) * (s / 2));
   const discAboveRails = drop == null ? null : D - drop;
-  const railTop = caster + TUBE;
+  const plate = 1.25;
+  const plateT = 0.25;
+  const wheel = 2;
+  const insetY = 0.5;
+  const insetX = 0.62;
+  const railTop = caster + plateT + TUBE;
   const belly = drop == null ? null : railTop - drop;
   const discTop = drop == null ? null : railTop + discAboveRails;
   const overallH = railTop + post;
@@ -356,22 +365,21 @@ function derive() {
   const rodLen = Math.hypot(run, rise);
   const angle = Math.atan2(rise, run) * 180 / Math.PI;
   const gussetLen = 2;
-  const plate = 2.5;
-  const inset = 1.15;
   const weld = 0.125;
   const slop = SLOT_C;
+  const yDiscOuter = -width / 2 + TUBE + SIDE_PAD + rod + (t + SLOT_C) / 2;
   const massEach = Math.PI * r * r * t * 0.2836 * (2.1 / 7.85);
   const cartLb = 32;
   const fullLb = cartLb + n * Math.max(13, Math.min(21, massEach));
   const zCg = (cartLb * (railTop * 0.55) + n * Math.max(13, Math.min(21, massEach)) * (railTop + (drop == null ? r : (r - drop)))) / fullLb;
-  const halfTrack = (width - 2.2) / 2;
+  const halfTrack = (width - 2 * insetY) / 2;
   const tipY = Math.atan(halfTrack / zCg) * 180 / Math.PI;
   const tipIfNarrow = Math.atan(((11.125 - 2.2) / 2) / zCg) * 180 / Math.PI;
   return {
     D, t, n, r, depth, rod, rods, post, caster, width, channel, air, faceGap,
     s, inner, drop, discAboveRails, railTop, belly, discTop, overallH, run, rise,
     rodLen, angle, slop, massEach, cartLb, fullLb, zCg, halfTrack, tipY, tipIfNarrow, used,
-    gussetLen, plate, inset, weld,
+    gussetLen, plate, plateT, wheel, insetY, insetX, weld, yDiscOuter,
   };
 }
 
@@ -456,8 +464,11 @@ function renderPanel(p) {
     ["Open rectangle inside bottom", inch(p.inner)],
     ["Cradle drop / climb to roll", inch(p.drop)],
     ["Caster height", inch(p.caster)],
-    ["Caster plate", `${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} × 0.25 in`],
-    ["Caster axis inset, both edges", inch(p.inset)],
+    ["Caster plate, max", `${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} × ${p.plateT.toFixed(2)} in`],
+    ["Caster wheel", `${p.wheel.toFixed(2)} in phenolic, ≤ 0.88 in wide`],
+    ["Caster axis inset from outer Y", inch(p.insetY)],
+    ["Caster axis inset from outer X", inch(p.insetX)],
+    ["Outer shelf center, from mid", inch(Math.abs(p.yDiscOuter))],
     ["Rail top above floor", inch(p.railTop)],
     ["Disc belly above floor", inch(p.belly)],
     ["Disc top above floor", inch(p.discTop)],
@@ -490,14 +501,97 @@ function renderPanel(p) {
     [`Top back rail`, 1, `1×1×14 ga HSS`, inch(p.width)],
     [`Corner gusset`, 2, `1×1×⅛ angle`, inch(p.gussetLen)],
     [`Jaw rod`, p.rods, `${p.rod.toFixed(3)} in HR round`, inch(p.rodLen)],
-    [`Caster plate`, 4, `¼ in plate`, `${p.plate.toFixed(2)} × ${p.plate.toFixed(2)}`],
-    [`Locking swivel caster`, 4, `phenolic or steel wheel`, inch(p.caster) + " tall"],
+    [`Caster pad`, 4, `¼ in plate`, `${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} flush outboard`],
+    [`Caster`, 4, `2 in phenolic wheel, lock`, inch(p.caster) + " overall"],
     [`Slot jig, shop only`, 1, `¾ MDF`, inch(p.t + p.slop)],
     [`Spacer jig, shop only`, 1, `¾ MDF`, inch(p.air)],
   ];
   $("cuts").innerHTML = "<tr><th>Part</th><th>Qty</th><th>Stock</th><th>Size</th></tr>" +
     cuts.map(([a, q, s, l]) => `<tr><td>${a}</td><td>${q}</td><td>${s}</td><td>${l}</td></tr>`).join("");
   renderBuild(p);
+  renderReview(p);
+}
+
+function rimZAtX(p, x) {
+  if (p.drop == null) return null;
+  const cy = p.railTop + (p.r - p.drop);
+  const inside = p.r * p.r - x * x;
+  if (inside < 0) return null;
+  return cy - Math.sqrt(inside);
+}
+
+function renderReview(p) {
+  const innerFace = p.width / 2 - TUBE;
+  const plateInboard = p.width / 2 - p.plate;
+  const oldPlateInboard = p.width / 2 - 2.5;
+  const xClose = p.depth / 2 - p.insetX - 2.25;
+  const zAtOldSwing = rimZAtX(p, Math.max(0, xClose));
+  const zAtPad = rimZAtX(p, p.depth / 2 - p.plate);
+  const items = [
+    {
+      cls: p.plate <= 1.26 && plateInboard >= innerFace - 0.02 ? "good" : "bad",
+      title: "Caster pads stay under the 1×1",
+      body: `Pad ${p.plate.toFixed(2)} in square, flush outboard. Inner edge of pad at ${inch(plateInboard)} from center. Inner face of the side tube is ${inch(innerFace)}. A 2½ in plate flush outboard would land at ${inch(oldPlateInboard)} — under the outer shelf (center ${inch(Math.abs(p.yDiscOuter))}). That was wrong.`
+    },
+    {
+      cls: p.wheel <= 2.01 && p.caster <= 3.01 ? "good" : "warn",
+      title: `Spec: ${p.wheel.toFixed(2)} in phenolic wheel, ${inch(p.caster)} overall`,
+      body: `Not a 3 in furniture wheel. Smaller wheel, less swivel trail, more air under the hanging rim. Steel is fine. Soft rubber is not. Total-lock if you can find it on this size; wheel lock at minimum.`
+    },
+    {
+      cls: zAtPad != null && zAtPad > p.caster + p.plateT + 0.5 ? "good" : "warn",
+      title: "Hanging rim vs pad at the corner",
+      body: `The 21.3 in disc sits on the rails and hangs ${inch(p.drop)} into the well. At the inner edge of the new pad, rim is ${zAtPad == null ? "—" : inch(zAtPad)} AFF. Pad top is ${inch(p.caster + p.plateT)} AFF. Need ≥ ½ in. Outer shelves are the ones that get close.`
+    },
+    {
+      cls: "bad",
+      title: "A normal swivel will swing into the well",
+      body: `Trail on a cheap 3 in swivel is ~2¼ in. From a corner axis that puts the wheel under the disc at X ≈ ${inch(Math.max(0, xClose))}, where the rim is ${zAtOldSwing == null ? "—" : inch(zAtOldSwing)} AFF. That is how a caster ends up in the way of a shelf. Rule: the whole wheel, at every swivel angle, stays outboard of the inner face of the side 1×1 (${inch(innerFace)} from center). If the caster in your hand fails that, do not use it. Stem caster, or rigid on the sides and swivel only on the operator end, then re-check the two outer shelves.`
+    },
+    {
+      cls: "good",
+      title: "Shelves do not come out through the casters",
+      body: `Pull is straight up ~2½ in, then a tilt toward the free end (along the kiln). Not out the side. The well is empty except the hanging bellies. Keep casters under the tubes and that path stays clear.`
+    },
+    {
+      cls: "warn",
+      title: "Do not weld rods on the sitting stripe",
+      body: `The disc rim sits on the top of the front and back 1×1s, in the ${inch(p.t)} stripe between each jaw pair. Rods land at the jaw Y, beside that stripe. Grind slag off the sitting faces. A lump of weld will chip cordierite.`
+    },
+    {
+      cls: "good",
+      title: "Angled bracket is 1×1×⅛ × 2 in",
+      body: `Two of them, inside the back-post feet. The sloped parts are ${inch(p.rod, 3)} round × ${inch(p.rodLen)}, not 1 in bar.`
+    },
+    {
+      cls: p.tipY >= 22 ? "good" : "warn",
+      title: `Tip toward the kiln is ${deg(p.tipY)}`,
+      body: `Better than the 11 in cart, still not a warehouse pallet jack. Roll into the aisle, lock, then pull a shelf. Handles on the ends, not the kiln side.`
+    },
+    {
+      cls: "warn",
+      title: "No keeper on the simple cart",
+      body: `A hard hop on tile can bounce a disc. Walk the cart. If it hops in use, add a hinged ⅛ × ¾ flat across the tops. Not on the first cut.`
+    },
+    {
+      cls: "warn",
+      title: "Tape the bay and one shelf before steel",
+      body: `Spoken pinch is ~14 in. Confirm at the floor, at 13 AFF, and at 26 AFF. Confirm D, t, and weight of a real Garden City disc. If the real pinch is under 13¼, stop. Caster wheels must stay inside ${inch(p.width)}.`
+    },
+    {
+      cls: "good",
+      title: "Rods square the back",
+      body: `The back rectangle can rack until the rods are on. Square it, tack the rods, then finish. ⅛ in fillets. ¼ in rods are locators. The rails carry the weight.`
+    },
+    {
+      cls: p.belly >= 1.75 ? "good" : "warn",
+      title: `Belly is ${inch(p.belly)} off the floor`,
+      body: `Includes the ¼ in pad under the tube. Grout and a dropped post fit. A 2×4 does not, and should not.`
+    }
+  ];
+  $("review").innerHTML = items.map((c) =>
+    `<div class="check ${c.cls}"><i></i><div><strong>${c.title}</strong><span>${c.body}</span></div></div>`
+  ).join("");
 }
 
 function stationsFromLeftOutside(p) {
@@ -535,7 +629,7 @@ function renderBuild(p) {
     `Two posts ${inch(p.post)}, flush to the back corners, standing on the back rail. Cap with a ${inch(p.width)} top rail. That is the second rectangle. It shares the back bottom tube. Then weld two 1×1×⅛ in angle gussets, ${inch(p.gussetLen)} long, inside the back-post-to-base corners. Yes — the angled bracket is 1 in angle, ⅛ in thick, 2 in long. Not 1 in rod.`;
 
   $("s3-copy").textContent =
-    `Four plates, ${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} × ¼ in, under the corners. Bolt four ${inch(p.caster)} total-lock swivel casters, phenolic or steel wheels. Caster axis ${inch(p.inset)} in from each outer edge. Wheels stay inside the ${inch(p.width)} plan. Soft rubber is illegal next to the kiln. Drill the plates to the caster you bought.`;
+    `Do not buy a 3 in furniture caster on a 2½ in plate. That plate sits under the outer shelves. Use a 2 in phenolic wheel, ${inch(p.caster)} overall height, pad ${p.plate.toFixed(2)} × ${p.plate.toFixed(2)} × ¼ in, flush to the outside corner so nothing crosses the inner face of the 1×1. Axis ${inch(p.insetY)} in from the side, ${inch(p.insetX)} in from the end. If the swivel you hold can swing inboard of that inner face, it is the wrong caster — get a stem caster or rigid sides plus swivel only on the operator end. Soft rubber is illegal next to the kiln.`;
 
   $("s4-copy").textContent =
     `${p.rods} rods, ${inch(p.rod, 3)} Ø × ${inch(p.rodLen)} long. Weld to the top of the front rail and the front of the top back rail. Run ${inch(p.run)}, rise ${inch(p.rise)}, angle ${deg(p.angle)} from the floor. Two rods per shelf: ${inch(p.t + p.slop)} clear inside the pair (shelf plus ⅛ in), then ${inch(p.air)} air, then the next pair. Stations are rod center from the left outside face. Jig: one MDF block ${inch(p.t + p.slop)}, one ${inch(p.air)}. Tack, drop a real shelf, then finish-weld. ⅛ in fillet at each rod end.`;
@@ -575,8 +669,8 @@ function renderBuild(p) {
        <circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="#3F6964" stroke-width="1.5"/>
        <circle cx="${cx}" cy="${cy}" r="2" fill="#3F6964"/>`
     ).join("")}
-    <text x="${ox + pw / 2}" y="${oy + ph / 2 - 4}" text-anchor="middle" font-size="11" fill="#3F6964">${p.plate.toFixed(2)} in plates</text>
-    <text x="${ox + pw / 2}" y="${oy + ph / 2 + 12}" text-anchor="middle" font-size="11" fill="#3F6964">inset ${inch(p.inset)} · ${inch(p.caster)} casters</text>
+    <text x="${ox + pw / 2}" y="${oy + ph / 2 - 4}" text-anchor="middle" font-size="11" fill="#3F6964">${p.plate.toFixed(2)} in pads, flush outboard</text>
+    <text x="${ox + pw / 2}" y="${oy + ph / 2 + 12}" text-anchor="middle" font-size="11" fill="#3F6964">2 in wheel · ${inch(p.caster)} overall</text>
   </svg>`;
 
   const sc4 = 22;
@@ -745,7 +839,7 @@ function rebuild() {
   const g = new THREE.Group();
   const W = p.width;
   const D = p.depth;
-  const y0 = p.caster; // bottom of frame tubes
+  const y0 = p.caster + p.plateT;
 
   // Bottom rectangle. Longs along width (Z), sides along depth (X).
   const front = box(TUBE, W, TUBE);
@@ -770,18 +864,19 @@ function rebuild() {
   top.position.set(postX, y0 + TUBE + postH - TUBE / 2, 0);
   g.add(postL, postR, top);
 
-  // Casters
-  const inset = 1.15;
+  // Casters tucked under the 1×1, not on 2½ in plates in the well
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       const c = new THREE.Group();
-      const stem = cyl(0.18, 0.18, Math.max(0.4, p.caster - 1.1), casterMat);
-      stem.position.y = p.caster / 2;
-      const wheel = cyl(p.caster * 0.42, p.caster * 0.42, 0.7, casterMat, 20);
+      const pad = box(p.plate, p.plate, p.plateT, casterMat);
+      pad.position.y = p.caster + p.plateT / 2;
+      const stem = cyl(0.16, 0.16, Math.max(0.35, p.caster - p.wheel * 0.55), casterMat);
+      stem.position.y = p.caster * 0.62;
+      const wheel = cyl(p.wheel / 2, p.wheel / 2, 0.75, casterMat, 20);
       wheel.rotation.z = Math.PI / 2;
-      wheel.position.y = p.caster * 0.42;
-      c.add(stem, wheel);
-      c.position.set(sx * (D / 2 - inset), 0, sz * (W / 2 - inset));
+      wheel.position.y = p.wheel / 2;
+      c.add(pad, stem, wheel);
+      c.position.set(sx * (D / 2 - p.insetX), 0, sz * (W / 2 - p.insetY));
       g.add(c);
     }
   }
