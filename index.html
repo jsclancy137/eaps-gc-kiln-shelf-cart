@@ -174,7 +174,7 @@
 </header>
 <div id="app">
   <div id="view">
-    <div class="hint">Drag to orbit · scroll to zoom · 1 unit = 1 inch</div>
+    <div class="hint">Drag to orbit · pinch or ⌃ scroll to zoom · 1 unit = 1 inch</div>
   </div>
   <aside>
     <h2>What this is</h2>
@@ -263,11 +263,14 @@ if (typeof THREE === "undefined") {
 </script>
 <script>
 function MiniOrbit(camera, el) {
-  const target = new THREE.Vector3(0, 10, 0);
+  const target = new THREE.Vector3();
   const spherical = new THREE.Spherical();
   const offset = new THREE.Vector3();
-  offset.copy(camera.position).sub(target);
-  spherical.setFromVector3(offset);
+  function frame() {
+    target.set(0, 12, 0);
+    spherical.set(78, 1.18, 0.72);
+  }
+  frame();
   let mode = null, lx = 0, ly = 0;
   el.addEventListener("pointerdown", (e) => {
     el.setPointerCapture(e.pointerId);
@@ -282,7 +285,7 @@ function MiniOrbit(camera, el) {
     lx = e.clientX; ly = e.clientY;
     if (mode === "rot") {
       spherical.theta -= dx * 0.005;
-      spherical.phi = Math.min(Math.PI * 0.49, Math.max(0.08, spherical.phi - dy * 0.005));
+      spherical.phi = Math.min(Math.PI * 0.49, Math.max(0.12, spherical.phi - dy * 0.005));
     } else {
       const pan = spherical.radius * 0.0016;
       const right = new THREE.Vector3();
@@ -293,8 +296,9 @@ function MiniOrbit(camera, el) {
     }
   });
   el.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    spherical.radius = Math.min(140, Math.max(14, spherical.radius * (1 + e.deltaY * 0.001)));
+    spherical.radius = Math.min(160, Math.max(36, spherical.radius * (1 + e.deltaY * 0.001)));
   }, { passive: false });
   el.addEventListener("contextmenu", (e) => e.preventDefault());
   return {
@@ -304,10 +308,7 @@ function MiniOrbit(camera, el) {
       camera.position.copy(target).add(offset);
       camera.lookAt(target);
     },
-    reset() {
-      target.set(0, 10, 0);
-      spherical.set(48, 1.05, 0.85);
-    }
+    reset: frame
   };
 }
 
@@ -628,8 +629,7 @@ const dimTags = [];
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x2A2322, 80, 160);
-const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
-camera.position.set(36, 28, 32);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 500);
 const controls = MiniOrbit(camera, renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(0xfff1dd, 0x1a1814, 1.1));
