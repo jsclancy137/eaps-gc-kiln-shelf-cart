@@ -43,8 +43,8 @@
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100%; background: var(--ivory); color: var(--ink); font: 14px/1.45 var(--sans); }
-  body { display: grid; grid-template-rows: auto minmax(68vh, 1fr) auto; }
+  html, body { margin: 0; background: var(--ivory); color: var(--ink); font: 14px/1.45 var(--sans); }
+  body { min-height: 100vh; }
   header.brand {
     display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
     padding: 10px 18px; background: var(--ivory);
@@ -70,8 +70,13 @@
     text-decoration: none; display: inline-block;
   }
   button:hover, .btn:hover { background: var(--ink); color: var(--ivory); }
-  #app { display: grid; grid-template-columns: 1fr minmax(300px, 380px); min-height: 0; }
-  #view { position: relative; min-height: 280px; background: #2A2322; overflow: hidden; }
+  #app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: start;
+  }
+  .main { min-width: 0; }
+  #view { position: relative; height: min(56vh, 540px); background: #2A2322; overflow: hidden; }
   #view canvas { display: block; width: 100%; height: 100%; }
   #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
   .dim-label {
@@ -89,8 +94,13 @@
     pointer-events: none;
   }
   aside {
-    background: var(--ivory); border-left: 1px solid var(--line);
-    overflow: auto; padding: 16px 16px 40px;
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    background: var(--ivory);
+    border-left: 1px solid var(--line);
+    overflow: auto;
+    padding: 16px 16px 32px;
   }
   h2 { margin: 18px 0 8px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--clay); font-weight: 700; }
   h2:first-child { margin-top: 0; }
@@ -123,7 +133,7 @@
   aside .studio-link:hover { text-decoration: underline; }
   #build {
     background: var(--ivory); border-top: 1px solid var(--line);
-    padding: 28px 18px 64px; max-width: 1100px; margin: 0 auto; width: 100%;
+    padding: 24px 18px 48px;
   }
   #build > h2 {
     font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay); margin: 0 0 6px;
@@ -153,15 +163,16 @@
   .stations td:last-child, .stations th:last-child { width: auto; }
   .build-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 18px; }
   @media (max-width: 840px) {
-    #app { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
-    aside { border-left: 0; border-top: 1px solid var(--line); }
+    #app { grid-template-columns: 1fr; }
+    #view { height: 42vh; }
+    aside { position: relative; max-height: none; border-left: 0; border-top: 1px solid var(--line); }
     header.brand a.mark img { height: 28px; }
   }
   @media print {
-    header.brand .hud-actions, #app, .build-bar, .studio-link, #boot-error { display: none !important; }
-    body { display: block; }
-    #build { padding: 0; max-width: none; }
-    .step { break-inside: avoid; box-shadow: none; }
+    header.brand .hud-actions, #view, aside, .build-bar, .studio-link, #boot-error { display: none !important; }
+    #app, .main { display: block; }
+    #build { padding: 0; }
+    .step { break-inside: avoid; }
   }
 </style>
 </head>
@@ -181,8 +192,45 @@
   </div>
 </header>
 <div id="app">
+  <div class="main">
   <div id="view">
     <div class="hint">Drag to orbit · pinch or ⌃ scroll to zoom · 1 unit = 1 inch</div>
+  </div>
+  <section id="build">
+  <h2>Build guidance</h2>
+  <p class="build-lead">Two rectangles. Four casters. Rods on a tape.</p>
+  <p class="build-sub">For the welder. All-metal, MIG, 1×1×14 ga square tube. Numbers below follow the sliders on this page. Tape the real Garden City shelf before you cut the rods. Not a purchase order.</p>
+  <div class="build-bar">
+    <button id="btn-print" type="button">Print this page</button>
+  </div>
+  <div class="steps">
+    <article class="step">
+      <header><span class="num">Step 1</span><h3>Weld the bottom rectangle</h3></header>
+      <p id="s1-copy"></p>
+      <div id="s1-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 2</span><h3>Stand the back rectangle on it</h3></header>
+      <p id="s2-copy"></p>
+      <div id="s2-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 3</span><h3>Bolt the casters</h3></header>
+      <p id="s3-copy"></p>
+      <div id="s3-svg"></div>
+    </article>
+    <article class="step">
+      <header><span class="num">Step 4</span><h3>Weld the rods</h3></header>
+      <p id="s4-copy"></p>
+      <div id="s4-svg"></div>
+      <table class="stations" id="rod-table"></table>
+    </article>
+  </div>
+
+  <h2 style="margin-top:28px">Critical review</h2>
+  <p class="build-sub">What was wrong, what we changed, and what still has to be true when you buy hardware. Read this before you cut or order casters.</p>
+  <div class="checks" id="review"></div>
+</section>
   </div>
   <aside>
     <h2>What this is</h2>
@@ -232,42 +280,7 @@
     <a class="studio-link" href="https://earthartspottery.com" target="_blank" rel="noopener">earthartspottery.com →</a>
   </aside>
 </div>
-
-<section id="build">
-  <h2>Build guidance</h2>
-  <p class="build-lead">Two rectangles. Four casters. Rods on a tape.</p>
-  <p class="build-sub">For the welder. All-metal, MIG, 1×1×14 ga square tube. Numbers below follow the sliders on this page. Tape the real Garden City shelf before you cut the rods. Not a purchase order.</p>
-  <div class="build-bar">
-    <button id="btn-print" type="button">Print this page</button>
-  </div>
-  <div class="steps">
-    <article class="step">
-      <header><span class="num">Step 1</span><h3>Weld the bottom rectangle</h3></header>
-      <p id="s1-copy"></p>
-      <div id="s1-svg"></div>
-    </article>
-    <article class="step">
-      <header><span class="num">Step 2</span><h3>Stand the back rectangle on it</h3></header>
-      <p id="s2-copy"></p>
-      <div id="s2-svg"></div>
-    </article>
-    <article class="step">
-      <header><span class="num">Step 3</span><h3>Bolt the casters</h3></header>
-      <p id="s3-copy"></p>
-      <div id="s3-svg"></div>
-    </article>
-    <article class="step">
-      <header><span class="num">Step 4</span><h3>Weld the rods</h3></header>
-      <p id="s4-copy"></p>
-      <div id="s4-svg"></div>
-      <table class="stations" id="rod-table"></table>
-    </article>
-  </div>
-
-  <h2 style="margin-top:28px">Critical review</h2>
-  <p class="build-sub">What was wrong, what we changed, and what still has to be true when you buy hardware. Read this before you cut or order casters.</p>
-  <div class="checks" id="review"></div>
-</section>
+  
 
 <div id="boot-error" style="display:none;position:absolute;left:16px;right:16px;top:90px;padding:12px;background:#3a1c14;border:1px solid #d4654a;color:#f3ece2;font:12px/1.4 var(--mono);z-index:5"></div>
 <script src="three.min.js"></script>
@@ -283,7 +296,7 @@ function MiniOrbit(camera, el) {
   const offset = new THREE.Vector3();
   function frame() {
     target.set(0, 11, 0);
-    spherical.set(120, 1.15, 0.85);
+    spherical.set(92, 1.12, 0.82);
   }
   frame();
   let mode = null, lx = 0, ly = 0;
