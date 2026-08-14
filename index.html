@@ -3,60 +3,96 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Garden City kiln-shelf cart — simple rack</title>
+<title>Kiln-shelf cart · Earth Arts Pottery Studio · Garden City</title>
 <style>
+  @font-face {
+    font-family: Bogle;
+    src: url("https://earthartspottery.com/cdn/shop/t/58/assets/bogle-regular.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: Bogle;
+    src: url("https://earthartspottery.com/cdn/shop/t/58/assets/bogle-medium.woff2") format("woff2");
+    font-weight: 500; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: Bogle;
+    src: url("https://earthartspottery.com/cdn/shop/t/58/assets/bogle-bold.woff2") format("woff2");
+    font-weight: 700; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "GT Alpina";
+    src: url("https://earthartspottery.com/cdn/shop/t/58/assets/gt-alpina-light-italic.woff2") format("woff2");
+    font-weight: 300; font-style: italic; font-display: swap;
+  }
   :root {
-    --bg: #161513;
-    --panel: #221f1b;
-    --ink: #f3ece2;
-    --muted: #b5aa9c;
-    --line: #3a342c;
-    --steel: #c5cdd4;
-    --clay: #c4784a;
-    --good: #7dba6f;
-    --warn: #e0a24a;
-    --bad: #d4654a;
-    --sans: "IBM Plex Sans", "Source Sans 3", system-ui, sans-serif;
-    --mono: "IBM Plex Mono", "ui-monospace", Menlo, monospace;
+    --ivory: #FBF3E7;
+    --cream: #F4E8D4;
+    --ink: #2A2322;
+    --muted: #6B5E56;
+    --line: #E4D5C2;
+    --clay: #B85C53;
+    --clay-deep: #AD5149;
+    --teal: #3F6964;
+    --good: #3F6964;
+    --warn: #C48A2A;
+    --bad: #AD5149;
+    --steel: #2A2322;
+    --sans: Bogle, "Helvetica Neue", Arial, sans-serif;
+    --serif: "GT Alpina", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--sans); }
-  #app { display: grid; grid-template-columns: 1fr minmax(300px, 380px); height: 100%; }
-  #view { position: relative; min-height: 280px; background: #0e0d0b; }
+  html, body { margin: 0; height: 100%; background: var(--ivory); color: var(--ink); font: 14px/1.45 var(--sans); }
+  body { display: grid; grid-template-rows: auto 1fr; }
+  header.brand {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 10px 18px; background: var(--ivory);
+    border-bottom: 1px solid var(--line); z-index: 8;
+  }
+  header.brand a.mark { display: flex; align-items: center; text-decoration: none; }
+  header.brand a.mark img { height: 36px; width: auto; display: block; }
+  header.brand .titles { flex: 1; min-width: 180px; }
+  header.brand .eyebrow {
+    margin: 0; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--clay); font-weight: 700;
+  }
+  header.brand h1 {
+    margin: 1px 0 0; font-size: 20px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1;
+  }
+  header.brand h1 em {
+    font-family: var(--serif); font-style: italic; font-weight: 300; color: var(--clay-deep);
+  }
+  header.brand .hud-actions { display: flex; gap: 6px; margin-left: auto; }
+  button, .btn {
+    appearance: none; border: 1px solid var(--ink); background: var(--ivory); color: var(--ink);
+    font: 700 12px/1 var(--sans); padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  }
+  button:hover { background: var(--ink); color: var(--ivory); }
+  #app { display: grid; grid-template-columns: 1fr minmax(300px, 380px); min-height: 0; }
+  #view { position: relative; min-height: 280px; background: #2A2322; overflow: hidden; }
   #view canvas { display: block; width: 100%; height: 100%; }
-  #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
   .dim-label {
     font: 10px/1 var(--mono);
-    color: #efe6d8;
-    background: rgba(20,18,15,0.72);
-    border: 1px solid #5a5146;
+    color: var(--ivory);
+    background: rgba(42,35,34,0.82);
+    border: 1px solid rgba(251,243,231,0.28);
     padding: 2px 5px;
     white-space: nowrap;
     transform: translate(-50%, -50%);
   }
-  .hud {
-    position: absolute; left: 14px; top: 14px; right: 14px;
-    display: flex; justify-content: space-between; gap: 10px; pointer-events: none;
-  }
-  .hud h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
-  .hud p { margin: 3px 0 0; color: var(--muted); font-size: 12px; max-width: 42ch; }
-  .hud-actions { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
-  button, .btn {
-    appearance: none; border: 1px solid #5a5146; background: #2a2621; color: var(--ink);
-    font: 12px/1 var(--sans); padding: 8px 10px; border-radius: 6px; cursor: pointer;
-  }
-  button:hover { border-color: var(--clay); }
   aside {
-    background: var(--panel); border-left: 1px solid var(--line);
+    background: var(--ivory); border-left: 1px solid var(--line);
     overflow: auto; padding: 16px 16px 40px;
   }
-  h2 { margin: 18px 0 8px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  h2 { margin: 18px 0 8px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--clay); font-weight: 700; }
   h2:first-child { margin-top: 0; }
   label.row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: baseline; margin: 8px 0 2px; font-size: 13px; }
-  label.row b { font-family: var(--mono); font-weight: 500; color: var(--steel); }
+  label.row b { font-family: var(--mono); font-weight: 500; color: var(--ink); }
   input[type="range"] { width: 100%; accent-color: var(--clay); }
   .checks { display: grid; gap: 6px; }
-  .check { display: grid; grid-template-columns: 10px 1fr; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: #1b1916; }
+  .check { display: grid; grid-template-columns: 10px 1fr; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
   .check i { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--muted); }
   .check.good i { background: var(--good); }
   .check.warn i { background: var(--warn); }
@@ -69,27 +105,33 @@
   td:last-child, th:last-child { text-align: right; font-family: var(--mono); }
   .note { color: var(--muted); font-size: 12px; }
   .tog { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
-  .hint { position: absolute; left: 14px; bottom: 12px; color: #9a9084; font-size: 11px; pointer-events: none; }
+  .hint { position: absolute; left: 14px; bottom: 12px; color: rgba(251,243,231,0.55); font-size: 11px; pointer-events: none; z-index: 3; }
+  aside .studio-link { display: inline-block; margin-top: 14px; color: var(--clay); font-weight: 700; text-decoration: none; font-size: 13px; }
+  aside .studio-link:hover { text-decoration: underline; }
   @media (max-width: 840px) {
-    #app { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
+    #app { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
     aside { border-left: 0; border-top: 1px solid var(--line); }
+    header.brand a.mark img { height: 28px; }
   }
 </style>
 </head>
 <body>
+<header class="brand">
+  <a class="mark" href="https://earthartspottery.com" target="_blank" rel="noopener">
+    <img src="logo-lockup.svg" alt="Earth Arts Pottery Studio">
+  </a>
+  <div class="titles">
+    <p class="eyebrow">Garden City · 659 Franklin Ave</p>
+    <h1>Kiln-shelf <em>cart</em></h1>
+  </div>
+  <div class="hud-actions">
+    <button id="btn-reset" type="button">Reset view</button>
+    <button id="btn-share" type="button">Copy share link</button>
+  </div>
+</header>
 <div id="app">
   <div id="view">
-    <div class="hud">
-      <div>
-        <h1>Simple kiln-shelf cart</h1>
-        <p>Cradle on the short span. Two jaws per shelf plus a spacer. Drag to orbit.</p>
-      </div>
-      <div class="hud-actions">
-        <button id="btn-reset" type="button">Reset view</button>
-        <button id="btn-share" type="button">Copy share link</button>
-      </div>
-    </div>
-    <div class="hint">1 unit = 1 inch · wall is behind the cart · kiln ghost is the pinch</div>
+    <div class="hint">Drag to orbit · scroll to zoom · 1 unit = 1 inch</div>
   </div>
   <aside>
     <h2>What this is</h2>
@@ -133,6 +175,7 @@
     <h2>Cut list</h2>
     <table id="cuts"></table>
     <p class="note">1×1×14 ga square tube, MIG. Bolt-on locking casters, phenolic or steel wheels. No wood. Not a fab commit — tape the real shelf before you cut rods.</p>
+    <a class="studio-link" href="https://earthartspottery.com" target="_blank" rel="noopener">earthartspottery.com →</a>
   </aside>
 </div>
 
@@ -403,7 +446,7 @@ if (typeof THREE === "undefined") {
 const view = $("view");
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setClearColor(0x0e0d0b, 1);
+renderer.setClearColor(0x2A2322, 1);
 renderer.shadowMap.enabled = true;
 view.appendChild(renderer.domElement);
 
@@ -413,7 +456,7 @@ view.appendChild(labelLayer);
 const dimTags = [];
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x0e0d0b, 80, 160);
+scene.fog = new THREE.Fog(0x2A2322, 80, 160);
 const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
 camera.position.set(36, 28, 32);
 const controls = MiniOrbit(camera, renderer.domElement);
@@ -628,10 +671,14 @@ function tick() {
   const tmp = new THREE.Vector3();
   for (const d of dimTags) {
     tmp.copy(d.pos).project(camera);
-    if (tmp.z > 1) { d.el.style.display = "none"; continue; }
+    const x = (tmp.x * 0.5 + 0.5) * w;
+    const y = (-tmp.y * 0.5 + 0.5) * h;
+    if (tmp.z > 1 || y < 18 || y > h - 28 || x < 24 || x > w - 24) {
+      d.el.style.display = "none"; continue;
+    }
     d.el.style.display = "block";
-    d.el.style.left = ((tmp.x * 0.5 + 0.5) * w) + "px";
-    d.el.style.top = ((-tmp.y * 0.5 + 0.5) * h) + "px";
+    d.el.style.left = x + "px";
+    d.el.style.top = y + "px";
   }
   requestAnimationFrame(tick);
 }
